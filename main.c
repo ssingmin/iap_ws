@@ -30,16 +30,7 @@ int main(void)
 	//mkdir("test_A", 0755);
 
 	dir_info = opendir("./hexfile");
-	/*
-	do
-	{
-		printf("%s\n", dir_entry->d_name);
-		//hexfinder[0]=dir_entry->d_name;////문자열 배열 어떻게 입력하는지 찾기
-		printf("%ld\n", dir_entry->d_ino);
 
-
-	} while (dir_entry = readdir(dir_info));
-	*/
 /*
 	while(dir_entry = readdir(dir_info))
 	{		
@@ -49,7 +40,7 @@ int main(void)
 	}
 */	
 
-	for(int i=0;i<4;i++)
+	for(int i=0;i<4;i++)//copy to hexfinder
 	{
 		dir_entry = readdir(dir_info);
 		hexfinder[i]=dir_entry->d_name;
@@ -65,13 +56,12 @@ int main(void)
 				printf("here!!!!!\n");
 				printf("%s\n", hexfinder[i]);
 				hexfinderflag = 1;
-				
 				break;
 			}
+			
 		}
 		if(hexfinderflag == 1){break; hexfinderflag = 0;}
 	}
-	
 	closedir(dir_info);
 	
 #if 0
