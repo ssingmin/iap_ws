@@ -1,4 +1,4 @@
-rm test.txt
+rm ./hexfile/writetest.txt
 make clean
 make
 ./iap
