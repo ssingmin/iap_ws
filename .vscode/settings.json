@@ -1,0 +1,8 @@
+{
+    "files.associations": {
+        "*.txt": "shellscript",
+        "bitset": "c",
+        "chrono": "c",
+        "algorithm": "c"
+    }
+}

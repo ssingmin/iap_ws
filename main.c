@@ -10,6 +10,8 @@
 #define buf_size 100
 #define buf_searching 10
 #define FileSize 400	//나중에 파일사이즈를 알아내서 배열을 선언하는 식으로 바꿀 것
+#define Num_data 32		//데이터 개수 최대 128까지
+#define start_point = 0x9000
 
 int main(void)
 { 
@@ -29,6 +31,9 @@ int main(void)
 
 	int temp = 0;
 	unsigned char tmp_buf[21] = {0,};
+
+	unsigned int checksum_tmp = 0;//지울수도 있음
+	unsigned char send_buf[Num_data+9] = {0,};//9: 2= command, 4=address, 1=checksum of address, 1=number of data, Num_data, 1=chechsum of data
 
 	printf("Start iap test\n");
 	printf("\n");
@@ -107,45 +112,89 @@ int main(void)
 		printf("%d\n", contents_line);//	마지막 배열 이후 끝점을 알아낼 것
 		printf("%d\n", contents[190][0]);//	마지막 배열 이후 끝점을 알아낼 것
 		
-		//parsing!!!!!!!!!!!!!!!
-
-		
-		#if 1
-		while(contents[0][temp] != 0x0A)
+		//contents_line = 1;
+		//parsing!!!!!!!!!!!!!!
+		for(int i=0;i<=contents_line;i++)
 		{
-			if(temp%2 == 0)	//number of ten
+			while(contents[i][temp] != 0x0A)
 			{
-				if((contents[0][temp]>=0x30) && (contents[0][temp]<=0x39))//0~9
+				if(temp%2 == 0)	//number of ten
 				{
-					tmp_buf[(temp/2)] = (contents[0][temp]-0x30)*0x10;
+					if((contents[i][temp]>=0x30) && (contents[i][temp]<=0x39))//0~9
+					{
+						tmp_buf[(temp/2)] = (contents[i][temp]-0x30)*0x10;
+					}
+					if((contents[i][temp]>=0x41) && (contents[i][temp]<=0x46))//A~F
+					{
+						tmp_buf[(temp/2)] = (contents[i][temp]-0x37)*0x10;
+					}
 				}
-				if((contents[0][temp]>=0x41) && (contents[0][temp]<=0x46))//A~F
-				{
-					tmp_buf[(temp/2)] = (contents[0][temp]-0x37)*0x10;
-				}
-			}
 
-			else			//number of one
-			{
-				if((contents[0][temp]>=0x30) & (contents[0][temp]<=0x39))//0~9
+				else			//number of one
 				{
-					tmp_buf[(temp/2)] += contents[0][temp]-0x30;
-				}	
-				if((contents[0][temp]>=0x41) && (contents[0][temp]<=0x46))//A~F
-				{
-					tmp_buf[(temp/2)] += contents[0][temp]-0x37;
+					if((contents[i][temp]>=0x30) & (contents[i][temp]<=0x39))//0~9
+					{
+						tmp_buf[(temp/2)] += contents[i][temp]-0x30;
+					}	
+					if((contents[i][temp]>=0x41) && (contents[i][temp]<=0x46))//A~F
+					{
+						tmp_buf[(temp/2)] += contents[i][temp]-0x37;
+					}
 				}
-			}
 			temp++;
-		}
-
-			printf("\n-------------------------\n");
+			}
+			temp = 0;
+			
+			//hexfile data checksum check
+			for(int i=0;i<4+tmp_buf[0];i++)
+			{
+				checksum_tmp += tmp_buf[i];
+			}
+			//4: 1=number of data, 2 = address of data, 1 = type of data (hexfile's structure)
+			if((unsigned char)((~checksum_tmp)+1) != tmp_buf[tmp_buf[0]+4])//two's complement checksum check
+			{
+				perror("hexfile checksum error");
+				exit(1);
+			}
+			else
+			{
+				checksum_tmp = 0;
+			}
+			
+			/* printf("\n-------------------------\n");
 			for(int i=0;i<22;i++)
 			{
 				printf("%1X ", tmp_buf[i]);//
+				tmp_buf[i] = 0;
 			} 
-			printf("\n-------------------------\n");
-		#endif
+			printf("\n-------------------------\n"); */
+			
+			//unsigned char hex_address[5] = {0,};//0~3 = address, 4 = checksum(XOR)
+			unsigned int test_ssingmin = 0xffffffff;
+			
+
+			//send_buf[0]=0x31;
+			//send_buf[1]=0xCE;	//complement of send_buf[0]
+			
+			//memcpy(&test_ssingmin, send_buf, 4);
+			test_ssingmin++;
+			//*send_buf = 0x1111;
+			printf("\n%X\n ", test_ssingmin);//헥사파일 정리해서 통신 버퍼로 보내기 'receive 데이터'처럼
+			
+			/* printf("\n-------------------------\n");
+			for(int i=0;i<22;i++)
+			{
+				printf("%1X %1X ",0x31, 0xce );//
+				printf("%1X ", tmp_buf[i]);//
+				tmp_buf[i] = 0;
+			} 
+			printf("\n-------------------------\n"); */
+
+
+		}
+		
+
+		
 		#if 0
 		for(int i=0;i<(contents_line+1);i++)
 		{
