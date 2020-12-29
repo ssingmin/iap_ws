@@ -170,14 +170,19 @@ int main(void)
 			printf("\n-------------------------\n"); */
 			
 			//unsigned char hex_address[5] = {0,};//0~3 = address, 4 = checksum(XOR)
+			printf("\n---%X---\n ", send_buf[2]);
 			unsigned int test_ssingmin = 0xffffffff;
 			
-
-			//send_buf[0]=0x31;
-			//send_buf[1]=0xCE;	//complement of send_buf[0]
 			
-			//memcpy(&test_ssingmin, send_buf, 4);
-			test_ssingmin++;
+
+			send_buf[0]=0x31;
+			send_buf[1]=0xCE;	//complement of send_buf[0]
+			//send_buf[2]=0xaa;
+			//send_buf[3]=0xbb;
+
+
+			memcpy(&test_ssingmin, send_buf, 4);
+			
 			//*send_buf = 0x1111;
 			printf("\n%X\n ", test_ssingmin);//헥사파일 정리해서 통신 버퍼로 보내기 'receive 데이터'처럼
 			
