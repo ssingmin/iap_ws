@@ -6,6 +6,8 @@
 #include <dirent.h>
 //#include <sys/types.h>
 #include <sys/stat.h>
+#include <termios.h> 
+
 
 #define buf_size 100
 #define buf_searching 10
@@ -13,10 +15,11 @@
 #define Num_data 32		//데이터 개수 최대 128까지
 #define start_point = 0x9000
 
-int main(void)
-{ 
+int main(int argc, char *argv[])	//추후에 인수 받아서 데이터 비트(ex. 현재는 32바이트, 나중에는 128바이트 전송으로 업그레이드 할 것)
+{ 	
 	int fd = 0;
 	int fd_1 = 0;
+	int fd_2 = 0;
 	int len = 0;
 	
 	char buf[buf_size] = {0,};
@@ -35,6 +38,13 @@ int main(void)
 	unsigned int checksum_tmp = 0;//지울수도 있음
 	unsigned char send_buf[Num_data+9] = {0,};//9: 2= command, 4=address, 1=checksum of address, 1=number of data, Num_data, 1=chechsum of data
 
+	unsigned char hex_address[5] = {0,};//0~3 = address, 4 = checksum(XOR)
+
+					
+	int c = 0;
+	unsigned char BootAck = 0;
+
+
 	printf("Start iap test\n");
 	printf("\n");
 	printf("\n");
@@ -42,11 +52,44 @@ int main(void)
 	DIR *dir_info;
  	struct dirent *dir_entry;
 
+	struct termios newtio; 
+
+
+	fd_2 = open( "/dev/ttyUSB0", O_RDWR | O_NOCTTY | O_NONBLOCK ); 
+
+	memset( &newtio, 0, sizeof(newtio) ); 
+	newtio.c_cflag |= CS8;      // 데이터 비트가 8bit  
+	newtio.c_cflag = B9600;   // 통신 속도 115200  
+	newtio.c_cflag |= CLOCAL;   // 외부 모뎀을 사용하지 않고 내부 통신 포트 사용  
+	newtio.c_cflag |= CREAD;    // 쓰기는 기본, 읽기도 가능하게  
+	newtio.c_cflag |= PARENB;   // parity 비트는 even
+	newtio.c_iflag = 0;       
+	newtio.c_oflag = 0; 
+	newtio.c_lflag = 0; 
+	newtio.c_cc[VTIME] = 0;  
+	newtio.c_cc[VMIN] = 1;  
+
+	tcflush (fd_2, TCIFLUSH );
+	tcsetattr(fd_2, TCSANOW, &newtio );   // 포트에 대한 통신 환경을 설정합니다. 
+
+
+	usleep(6);	
+	send_buf[0]=0x7f;
+	write( fd_2, send_buf, 1);//transmit data to ttyUSB0
+	
+	usleep(6);
+	send_buf[0]=0x00;
+	send_buf[1]=0xff;
+	write( fd_2, send_buf, 2);//transmit data to ttyUSB0
+
 
 	dir_info = opendir("./hexfile");
 
+
 	for(int i=0;i<buf_searching;i++)//copy to hextemp
-	{
+	{	
+		*(hextemp+i) = (char*)malloc(sizeof(char) * 10);
+		memset(*(hextemp+i), 0, sizeof(char)*10);
 		dir_entry = readdir(dir_info);
 		hextemp[i]=dir_entry->d_name;
 	}
@@ -66,12 +109,11 @@ int main(void)
 	closedir(dir_info);
 
 #if 1
-	
+
 	memcpy(&filepath[8],hextemp[hexflag],sizeof(filepath)); 
 	printf(filepath);
 	printf("\n\n");
 
-	
 
 	if((fd = open(filepath, O_RDONLY | O_CREAT , 0666)) == -1)//Searched file open 
 	{
@@ -144,12 +186,15 @@ int main(void)
 			temp++;
 			}
 			temp = 0;
-			
+		
+
 			//hexfile data checksum check
 			for(int i=0;i<4+tmp_buf[0];i++)
 			{
 				checksum_tmp += tmp_buf[i];
 			}
+
+
 			//4: 1=number of data, 2 = address of data, 1 = type of data (hexfile's structure)
 			if((unsigned char)((~checksum_tmp)+1) != tmp_buf[tmp_buf[0]+4])//two's complement checksum check
 			{
@@ -161,60 +206,61 @@ int main(void)
 				checksum_tmp = 0;
 			}
 			
-			/* printf("\n-------------------------\n");
-			for(int i=0;i<22;i++)
+
+			for(int b=0;b<5;b++){hex_address[b] = 0;}//init
+
+			memcpy(&hex_address[2], &tmp_buf[1], 2);
+
+
+			for(int l=0;l<4;l++ )//checksum
 			{
-				printf("%1X ", tmp_buf[i]);//
-				tmp_buf[i] = 0;
-			} 
-			printf("\n-------------------------\n"); */
-			
-			//unsigned char hex_address[5] = {0,};//0~3 = address, 4 = checksum(XOR)
-			printf("\n---%X---\n ", send_buf[2]);
-			unsigned int test_ssingmin = 0xffffffff;
-			
-			
-
-			send_buf[0]=0x31;
-			send_buf[1]=0xCE;	//complement of send_buf[0]
-			//send_buf[2]=0xaa;
-			//send_buf[3]=0xbb;
-
-
-			memcpy(&test_ssingmin, send_buf, 4);
-			
-			//*send_buf = 0x1111;
-			printf("\n%X\n ", test_ssingmin);//헥사파일 정리해서 통신 버퍼로 보내기 'receive 데이터'처럼
-			
-			/* printf("\n-------------------------\n");
-			for(int i=0;i<22;i++)
-			{
-				printf("%1X %1X ",0x31, 0xce );//
-				printf("%1X ", tmp_buf[i]);//
-				tmp_buf[i] = 0;
-			} 
-			printf("\n-------------------------\n"); */
-
-
-		}
-		
-
-		
-		#if 0
-		for(int i=0;i<(contents_line+1);i++)
-		{
-			if(len=write(fd_1, contents[i], strlen(contents[i]))==-1)
-			{ 
-				perror("!!!!!open failed"); 
-				exit(1); 
+				hex_address[4]^=hex_address[l];//
 			}
-			else {printf("file write success\n");} 
+
+
+			if(((tmp_buf[2]/0x10)%2) == 0)
+			{
+				send_buf[0]=0x31;
+				send_buf[1]=0xCE;	//complement of send_buf[0]
+
+				memcpy(&send_buf[2], &hex_address[0], 5);
+				memcpy(&send_buf[8], &tmp_buf[4], tmp_buf[0]);
+
+				send_buf[7]=tmp_buf[0];
+			}
+			else
+			{
+				memcpy(&send_buf[24], &tmp_buf[4], tmp_buf[0]);
+
+				send_buf[7]+=tmp_buf[0]-1;
+				
+				for(int l=7;l<send_buf[7]+9;l++ )//checksum
+				{
+					send_buf[send_buf[7]+9]^=send_buf[l];
+				}
+
+
+				while(1)
+				{	
+				write( fd_2, send_buf, send_buf[7]+10);//transmit data to ttyUSB0
+				usleep(6);
+				read(fd_2, &BootAck, 1);
+				if(BootAck == 0x79)
+				{
+					for(int k=0;k<sizeof(send_buf);k++){send_buf[k]=0;}
+					BootAck = 0;
+					break;
+				}//nack 많이 뜨는데 왜 많이 뜨는지 확인할 것 STM32F10x_AN2557_FW_V3.3.0 소스 확인할 것
+				usleep(100);
+				
+				} 
+					
+			}
+
 		}
-		#endif
 
 		close(fd_1);
-
-
+		close(fd_2);
 		close(fd);
 		//printf("file open success\n");
 	}
@@ -240,4 +286,3 @@ int main(void)
 
 	return 0;
 }
-
